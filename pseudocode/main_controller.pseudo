@@ -1,0 +1,45 @@
+PROGRAM LawnCareController
+BEGIN
+    DECLARE userActivity AS STRING
+    DECLARE userRegion AS STRING  
+    DECLARE currentMonth AS INTEGER
+    DECLARE currentTemp AS FLOAT
+    DECLARE calculator AS LawnCareCalculator
+    DECLARE result AS TimingWindow
+    
+    FUNCTION ProcessTimingRequest(activity, region)
+    BEGIN
+        VALIDATE activity IS IN validActivities
+        VALIDATE region IS IN validRegions
+        
+        IF activity IS VALID AND region IS VALID THEN
+            calculator = CreateCalculator(region)
+            result = calculator.GetTimingWindow(activity)
+            RETURN result
+        ELSE
+            RETURN ERROR "Invalid input parameters"
+        END IF
+    END
+    
+    FUNCTION CheckCurrentConditions(activity, region, month, temperature)
+    BEGIN
+        calculator = CreateCalculator(region)
+        isOptimal = calculator.IsOptimalTime(activity, month, temperature)
+        
+        IF isOptimal THEN
+            RETURN "Current conditions are optimal"
+        ELSE
+            nextWindow = calculator.GetNextOptimalWindow(activity)
+            RETURN "Next optimal window: " + nextWindow
+        END IF
+    END
+    
+    // Main execution flow
+    userActivity = GetUserInput("Enter activity")
+    userRegion = GetUserInput("Enter region") 
+    currentMonth = GetCurrentMonth()
+    currentTemp = GetCurrentTemperature()
+    
+    result = CheckCurrentConditions(userActivity, userRegion, currentMonth, currentTemp)
+    DisplayResult(result)
+END
