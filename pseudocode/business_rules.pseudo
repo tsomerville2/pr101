@@ -1,0 +1,81 @@
+PROGRAM BusinessRules
+BEGIN
+    DECLARE timingWindow AS RECORD
+    DECLARE adjustedWindow AS RECORD
+    
+    FUNCTION ApplyRegionalAdjustment(baseWindow, regionAdjustment)
+    BEGIN
+        adjustedWindow = baseWindow
+        
+        // Adjust spring timing
+        adjustedWindow.startMonth = baseWindow.startMonth + regionAdjustment.springDelay
+        adjustedWindow.endMonth = baseWindow.endMonth + regionAdjustment.springDelay
+        
+        // Adjust fall timing if activity has fall window
+        IF baseWindow.fallStart > 0 THEN
+            adjustedWindow.fallStart = baseWindow.fallStart + regionAdjustment.fallAdvance
+            adjustedWindow.fallEnd = baseWindow.fallEnd + regionAdjustment.fallAdvance
+        END IF
+        
+        // Ensure months stay within valid range (1-12)
+        adjustedWindow.startMonth = ClampMonth(adjustedWindow.startMonth)
+        adjustedWindow.endMonth = ClampMonth(adjustedWindow.endMonth)
+        adjustedWindow.fallStart = ClampMonth(adjustedWindow.fallStart)
+        adjustedWindow.fallEnd = ClampMonth(adjustedWindow.fallEnd)
+        
+        RETURN adjustedWindow
+    END
+    
+    FUNCTION ValidateTemperatureRange(currentTemp, minTemp, maxTemp)
+    BEGIN
+        IF currentTemp >= minTemp AND currentTemp <= maxTemp THEN
+            RETURN TRUE
+        ELSE
+            RETURN FALSE
+        END IF
+    END
+    
+    FUNCTION IsWithinOptimalWindow(currentMonth, timingWindow)
+    BEGIN
+        // Check spring window
+        IF currentMonth >= timingWindow.startMonth AND currentMonth <= timingWindow.endMonth THEN
+            RETURN TRUE
+        END IF
+        
+        // Check fall window if exists
+        IF timingWindow.fallStart > 0 THEN
+            IF currentMonth >= timingWindow.fallStart AND currentMonth <= timingWindow.fallEnd THEN
+                RETURN TRUE
+            END IF
+        END IF
+        
+        RETURN FALSE
+    END
+    
+    FUNCTION ClampMonth(month)
+    BEGIN
+        IF month < 1 THEN
+            RETURN 1
+        ELSE IF month > 12 THEN
+            RETURN 12
+        ELSE
+            RETURN month
+        END IF
+    END
+    
+    FUNCTION CalculateNextOptimalWindow(currentMonth, timingWindow)
+    BEGIN
+        // Find next spring window
+        IF currentMonth < timingWindow.startMonth THEN
+            RETURN timingWindow.startMonth
+        END IF
+        
+        // Find fall window if exists and not passed
+        IF timingWindow.fallStart > 0 AND currentMonth < timingWindow.fallStart THEN
+            RETURN timingWindow.fallStart
+        END IF
+        
+        // Next year's spring window
+        RETURN timingWindow.startMonth + 12
+    END
+END

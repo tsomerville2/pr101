@@ -1,0 +1,46 @@
+PROGRAM DataManager
+BEGIN
+    DECLARE activityData AS DICTIONARY
+    DECLARE regionalAdjustments AS DICTIONARY
+    
+    FUNCTION InitializeActivityData()
+    BEGIN
+        activityData["seeding"] = {startMonth: 3, endMonth: 5, fallStart: 8, fallEnd: 10, minTemp: 60, maxTemp: 75}
+        activityData["fertilizing"] = {startMonth: 4, endMonth: 6, fallStart: 9, fallEnd: 11, minTemp: 50, maxTemp: 85}
+        activityData["dethatching"] = {startMonth: 3, endMonth: 5, fallStart: 8, fallEnd: 10, minTemp: 55, maxTemp: 80}
+        activityData["aeration"] = {startMonth: 3, endMonth: 5, fallStart: 8, fallEnd: 10, minTemp: 50, maxTemp: 80}
+        activityData["overseeding"] = {startMonth: 4, endMonth: 5, fallStart: 8, fallEnd: 9, minTemp: 60, maxTemp: 75}
+        activityData["weed_control"] = {startMonth: 3, endMonth: 4, fallStart: 9, fallEnd: 10, minTemp: 55, maxTemp: 85}
+        activityData["grub_control"] = {startMonth: 5, endMonth: 7, fallStart: 0, fallEnd: 0, minTemp: 65, maxTemp: 90}
+        activityData["winterizing"] = {startMonth: 10, endMonth: 12, fallStart: 0, fallEnd: 0, minTemp: 30, maxTemp: 60}
+    END
+    
+    FUNCTION InitializeRegionalAdjustments()
+    BEGIN
+        regionalAdjustments["northern"] = {springDelay: 2, fallAdvance: 2}
+        regionalAdjustments["central"] = {springDelay: 0, fallAdvance: 0}  
+        regionalAdjustments["southern"] = {springDelay: -2, fallAdvance: -2}
+    END
+    
+    FUNCTION GetActivityTiming(activityName)
+    BEGIN
+        IF activityName EXISTS IN activityData THEN
+            RETURN activityData[activityName]
+        ELSE
+            RETURN NULL
+        END IF
+    END
+    
+    FUNCTION GetRegionalAdjustment(regionName)
+    BEGIN
+        IF regionName EXISTS IN regionalAdjustments THEN
+            RETURN regionalAdjustments[regionName]
+        ELSE
+            RETURN NULL
+        END IF
+    END
+    
+    // Initialize data on startup
+    InitializeActivityData()
+    InitializeRegionalAdjustments()
+END

@@ -1,0 +1,91 @@
+PROGRAM IOHandler
+BEGIN
+    DECLARE userInput AS STRING
+    DECLARE validActivities AS ARRAY
+    DECLARE validRegions AS ARRAY
+    
+    FUNCTION InitializeValidInputs()
+    BEGIN
+        validActivities = ["seeding", "fertilizing", "dethatching", "aeration", "overseeding", "weed_control", "grub_control", "winterizing"]
+        validRegions = ["northern", "central", "southern"]
+    END
+    
+    FUNCTION GetUserInput(promptMessage)
+    BEGIN
+        DISPLAY promptMessage
+        userInput = READ_FROM_CONSOLE()
+        userInput = TRIM(LOWERCASE(userInput))
+        RETURN userInput
+    END
+    
+    FUNCTION ValidateActivity(activity)
+    BEGIN
+        FOR EACH validActivity IN validActivities DO
+            IF activity EQUALS validActivity THEN
+                RETURN TRUE
+            END IF
+        END FOR
+        RETURN FALSE
+    END
+    
+    FUNCTION ValidateRegion(region)
+    BEGIN
+        FOR EACH validRegion IN validRegions DO
+            IF region EQUALS validRegion THEN
+                RETURN TRUE
+            END IF
+        END FOR
+        RETURN FALSE
+    END
+    
+    FUNCTION DisplayTimingWindow(window)
+    BEGIN
+        DISPLAY "Optimal Timing Window:"
+        DISPLAY "Spring: Months " + window.startMonth + "-" + window.endMonth
+        
+        IF window.fallStart > 0 THEN
+            DISPLAY "Fall: Months " + window.fallStart + "-" + window.fallEnd
+        END IF
+        
+        DISPLAY "Temperature Range: " + window.minTemp + "°F - " + window.maxTemp + "°F"
+    END
+    
+    FUNCTION DisplayError(errorMessage)
+    BEGIN
+        DISPLAY "ERROR: " + errorMessage
+        DISPLAY "Valid activities: " + JOIN(validActivities, ", ")
+        DISPLAY "Valid regions: " + JOIN(validRegions, ", ")
+    END
+    
+    FUNCTION DisplayOptimalStatus(isOptimal, nextWindow)
+    BEGIN
+        IF isOptimal THEN
+            DISPLAY "✓ Current conditions are OPTIMAL for this activity"
+        ELSE
+            DISPLAY "✗ Current conditions are NOT optimal"
+            DISPLAY "Next optimal window starts in month: " + nextWindow
+        END IF
+    END
+    
+    FUNCTION ParseCommandLineArgs(args)
+    BEGIN
+        DECLARE parsedArgs AS RECORD
+        
+        FOR i = 0 TO LENGTH(args) - 1 DO
+            IF args[i] EQUALS "--activity" THEN
+                parsedArgs.activity = args[i + 1]
+            ELSE IF args[i] EQUALS "--region" THEN
+                parsedArgs.region = args[i + 1]
+            ELSE IF args[i] EQUALS "--month" THEN
+                parsedArgs.month = CONVERT_TO_INTEGER(args[i + 1])
+            ELSE IF args[i] EQUALS "--temp" THEN
+                parsedArgs.temperature = CONVERT_TO_FLOAT(args[i + 1])
+            END IF
+        END FOR
+        
+        RETURN parsedArgs
+    END
+    
+    // Initialize valid inputs on startup
+    InitializeValidInputs()
+END
