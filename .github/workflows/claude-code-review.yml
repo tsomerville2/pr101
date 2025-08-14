@@ -46,7 +46,7 @@ jobs:
             - Code quality and best practices
             - Potential bugs or issues
             - Performance considerations
-            - Security concerns
+            - Run security-penetration-tests agent
             - Test coverage
             
             Be constructive and helpful in your feedback.
