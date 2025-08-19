@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lawn Calculator - Map Area Calculator</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌱 Lawn Calculator</h1>
+            <p>Search your location, draw your lawn area, and calculate costs</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Search Section -->
+            <div class="search-section">
+                <h2>1. Search Your Location</h2>
+                <div class="search-container">
+                    <input type="text" id="search-input" placeholder="Enter your address or location...">
+                    <button id="search-btn">Search</button>
+                </div>
+                <div id="search-status"></div>
+            </div>
+
+            <!-- Map Section -->
+            <div class="map-section">
+                <h2>2. Draw Your Lawn Area</h2>
+                <div class="map-controls">
+                    <button id="draw-btn" class="control-btn">🖊️ Draw Area</button>
+                    <button id="clear-btn" class="control-btn">🗑️ Clear</button>
+                    <button id="calculate-btn" class="control-btn" disabled>📏 Calculate</button>
+                </div>
+                <div id="map"></div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section">
+                <h2>3. Area & Cost Results</h2>
+                <div class="results-grid">
+                    <div class="result-card">
+                        <h3>Area</h3>
+                        <div id="area-result">
+                            <span class="value">0</span>
+                            <span class="unit">sq ft</span>
+                        </div>
+                        <div class="conversion">
+                            (<span id="area-acres">0</span> acres)
+                        </div>
+                    </div>
+
+                    <div class="result-card">
+                        <h3>Cost Estimates</h3>
+                        <div class="cost-breakdown">
+                            <div class="cost-item">
+                                <span class="cost-label">Basic Seeding:</span>
+                                <span class="cost-value" id="seeding-cost">$0</span>
+                            </div>
+                            <div class="cost-item">
+                                <span class="cost-label">Fertilizer:</span>
+                                <span class="cost-value" id="fertilizer-cost">$0</span>
+                            </div>
+                            <div class="cost-item">
+                                <span class="cost-label">Professional Service:</span>
+                                <span class="cost-value" id="service-cost">$0</span>
+                            </div>
+                            <div class="cost-item total">
+                                <span class="cost-label">Total Estimated:</span>
+                                <span class="cost-value" id="total-cost">$0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="result-card">
+                        <h3>Lawn Care Schedule</h3>
+                        <div id="schedule-info">
+                            <p>Select your region:</p>
+                            <select id="region-select">
+                                <option value="northern">Northern</option>
+                                <option value="central" selected>Central</option>
+                                <option value="southern">Southern</option>
+                            </select>
+                            <div id="current-activities"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Powered by Leaflet Maps & OpenStreetMap | Lawn Care Calculator</p>
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+    <script src="lawn-calculator.js"></script>
+</body>
+</html>
