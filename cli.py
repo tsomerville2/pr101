@@ -7,6 +7,7 @@ import argparse
 import sys
 from datetime import datetime
 from lawn_care_calculator import LawnCareCalculator, LawnCareActivity, Region
+from height_analyzer import HeightAnalyzer
 
 
 def main():
@@ -20,6 +21,8 @@ Examples:
   python cli.py --schedule
   python cli.py --current-optimal --month 5 --temp 70
   python cli.py --next-window fertilizing
+  python cli.py --height-scan photo.jpg --reference-object smartphone
+  python cli.py --ssa-scan image.png --reference-height 85.6
         """
     )
     
@@ -53,6 +56,18 @@ Examples:
                        choices=[activity.value for activity in LawnCareActivity],
                        help='Show next optimal window for activity')
     
+    parser.add_argument('--height-scan', '--ssa-scan',
+                       type=str,
+                       help='Analyze height from photo (provide image path)')
+    
+    parser.add_argument('--reference-object',
+                       choices=['credit_card', 'coin_quarter', 'smartphone', 'door', 'standard_brick'],
+                       help='Reference object in photo for scale')
+    
+    parser.add_argument('--reference-height',
+                       type=float,
+                       help='Known height of reference object in mm')
+    
     args = parser.parse_args()
     
     # Initialize calculator
@@ -77,6 +92,9 @@ Examples:
     
     elif args.next_window:
         show_next_window(calculator, LawnCareActivity(args.next_window))
+    
+    elif args.height_scan:
+        analyze_height_from_photo(args.height_scan, args.reference_object, args.reference_height)
     
     elif args.month:
         show_monthly_activities(calculator, args.month)
@@ -185,6 +203,53 @@ def show_monthly_activities(calculator, month):
         print("No activities are optimal for this month.")
 
 
+def analyze_height_from_photo(image_path, reference_object=None, reference_height=None):
+    """Analyze height from a photo using ML techniques."""
+    print("\nHeight Analysis from Photo")
+    print("=" * 30)
+    print(f"Image: {image_path}")
+    
+    try:
+        analyzer = HeightAnalyzer()
+        
+        # Perform analysis
+        result = analyzer.analyze_height_from_photo(
+            image_path, reference_object, reference_height
+        )
+        
+        if result.get("success"):
+            print("\n✅ Analysis Complete!")
+            print("-" * 20)
+            print(f"Estimated Height: {result['height_cm']} cm")
+            print(f"                 {result['height_inches']} inches")
+            print(f"                 {result['height_feet_inches']}")
+            print(f"Confidence Score: {result['confidence']:.0%}")
+            print(f"Method Used: {result['method']}")
+            
+            if result['confidence'] >= 0.7:
+                print("\n🎯 High confidence result!")
+            elif result['confidence'] >= 0.5:
+                print("\n⚠️  Moderate confidence - consider using a reference object")
+            else:
+                print("\n❌ Low confidence - try with better lighting or reference object")
+            
+            print(f"\nTechnical Details:")
+            print(f"  Person height (pixels): {result['person_height_pixels']:.1f}")
+            print(f"  Scale factor: {result['scale_factor']:.4f} mm/pixel")
+            
+        else:
+            print(f"\n❌ Analysis Failed: {result.get('error', 'Unknown error')}")
+            print("\nTips for better results:")
+            print("• Ensure good lighting and clear image")
+            print("• Include a reference object (credit card, smartphone, etc.)")
+            print("• Make sure the person is fully visible")
+            print("• Take photo from a reasonable distance")
+    
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+        print("\nMake sure the image file exists and is a valid image format.")
+
+
 def show_overview(calculator):
     """Show a general overview of the calculator"""
     print("\nLawn Care Calculator Overview:")
@@ -202,6 +267,10 @@ def show_overview(calculator):
             print(f"  • {activity.value.replace('_', ' ').title()}")
     else:
         print("  • No activities optimal for current month")
+    
+    print(f"\n📏 NEW: Height Analysis Feature")
+    print("  Use --height-scan to analyze height from photos!")
+    print("  Example: python cli.py --height-scan photo.jpg --reference-object smartphone")
     
     print(f"\nUse --help to see all available options")
     print("Example: python cli.py --schedule")
