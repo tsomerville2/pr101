@@ -9,6 +9,8 @@ based on seasonal patterns, temperature ranges, and regional considerations.
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, NamedTuple, Optional
+import time
+import threading
 
 
 class Season(Enum):
@@ -35,6 +37,31 @@ class LawnCareActivity(Enum):
     WINTERIZING = "winterizing"
 
 
+class GrassType(Enum):
+    COOL_SEASON = "cool_season"
+    WARM_SEASON = "warm_season"
+
+
+class WeatherCondition(Enum):
+    SUNNY = "sunny"
+    RAINY = "rainy"
+    CLOUDY = "cloudy"
+    WINDY = "windy"
+
+
+class TimerStatus(Enum):
+    STOPPED = "stopped"
+    RUNNING = "running"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+
+
+class SoilMoisture(Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
 class TimingWindow(NamedTuple):
     start_month: int
     end_month: int
@@ -43,12 +70,105 @@ class TimingWindow(NamedTuple):
     description: str
 
 
+class WateringTimer:
+    """Timer for lawn watering with countdown functionality."""
+    
+    def __init__(self, duration_minutes: int):
+        self.original_duration = duration_minutes
+        self.remaining_minutes = duration_minutes
+        self.status = TimerStatus.STOPPED
+        self.start_time = None
+        self.pause_time = None
+        self._timer_thread = None
+        self._stop_event = threading.Event()
+    
+    def start(self):
+        """Start the watering timer."""
+        if self.status == TimerStatus.PAUSED:
+            self.resume()
+            return
+            
+        self.status = TimerStatus.RUNNING
+        self.start_time = datetime.now()
+        self._stop_event.clear()
+        self._timer_thread = threading.Thread(target=self._run_timer)
+        self._timer_thread.daemon = True
+        self._timer_thread.start()
+    
+    def pause(self):
+        """Pause the watering timer."""
+        if self.status == TimerStatus.RUNNING:
+            self.status = TimerStatus.PAUSED
+            self.pause_time = datetime.now()
+            self._stop_event.set()
+    
+    def resume(self):
+        """Resume the paused watering timer."""
+        if self.status == TimerStatus.PAUSED:
+            # Calculate time elapsed before pause
+            elapsed_before_pause = (self.pause_time - self.start_time).total_seconds() / 60
+            self.remaining_minutes = max(0, self.original_duration - elapsed_before_pause)
+            
+            self.status = TimerStatus.RUNNING
+            self.start_time = datetime.now()
+            self.pause_time = None
+            self._stop_event.clear()
+            self._timer_thread = threading.Thread(target=self._run_timer)
+            self._timer_thread.daemon = True
+            self._timer_thread.start()
+    
+    def reset(self):
+        """Reset the timer to original duration."""
+        self._stop_event.set()
+        self.status = TimerStatus.STOPPED
+        self.remaining_minutes = self.original_duration
+        self.start_time = None
+        self.pause_time = None
+    
+    def get_status(self) -> Dict:
+        """Get current timer status and remaining time."""
+        if self.status == TimerStatus.RUNNING and self.start_time:
+            elapsed_minutes = (datetime.now() - self.start_time).total_seconds() / 60
+            current_remaining = max(0, self.remaining_minutes - elapsed_minutes)
+            
+            if current_remaining <= 0:
+                self.status = TimerStatus.COMPLETED
+                current_remaining = 0
+        else:
+            current_remaining = self.remaining_minutes
+        
+        progress_percentage = ((self.original_duration - current_remaining) / self.original_duration) * 100
+        
+        return {
+            "status": self.status.value,
+            "remaining_minutes": round(current_remaining, 1),
+            "original_duration": self.original_duration,
+            "progress_percentage": round(progress_percentage, 1)
+        }
+    
+    def _run_timer(self):
+        """Internal timer thread function."""
+        start_remaining = self.remaining_minutes
+        
+        while not self._stop_event.is_set() and start_remaining > 0:
+            time.sleep(1)  # Update every second
+            start_remaining -= 1/60  # Subtract 1 second in minutes
+            
+            if start_remaining <= 0:
+                self.status = TimerStatus.COMPLETED
+                break
+        
+        if self.status == TimerStatus.RUNNING and start_remaining <= 0:
+            self.status = TimerStatus.COMPLETED
+
+
 class LawnCareCalculator:
     """Calculate optimal timing windows for lawn care activities."""
     
     def __init__(self, region: Region = Region.CENTRAL):
         self.region = region
         self._timing_data = self._initialize_timing_data()
+        self.watering_timer = None
     
     def _initialize_timing_data(self) -> Dict[LawnCareActivity, Dict[Region, TimingWindow]]:
         """Initialize timing data for different activities and regions."""
@@ -184,6 +304,149 @@ class LawnCareCalculator:
             schedule[month] = [activity.value for activity in activities]
             
         return schedule
+    
+    def get_watering_frequency(self, grass_type: GrassType, season: Season = None) -> Dict:
+        """Get watering frequency recommendations based on grass type and region."""
+        if season is None:
+            current_month = datetime.now().month
+            if current_month in [3, 4, 5]:
+                season = Season.SPRING
+            elif current_month in [6, 7, 8]:
+                season = Season.SUMMER
+            elif current_month in [9, 10, 11]:
+                season = Season.FALL
+            else:
+                season = Season.WINTER
+        
+        base_recommendations = {
+            (GrassType.COOL_SEASON, Region.NORTHERN): {"frequency": "2-3 times", "duration": "15-20", "optimal_time": "6-8 AM"},
+            (GrassType.COOL_SEASON, Region.CENTRAL): {"frequency": "2-4 times", "duration": "20-25", "optimal_time": "6-8 AM"},
+            (GrassType.COOL_SEASON, Region.SOUTHERN): {"frequency": "3-4 times", "duration": "20-25", "optimal_time": "6-8 AM"},
+            (GrassType.WARM_SEASON, Region.NORTHERN): {"frequency": "2-3 times", "duration": "20-25", "optimal_time": "6-8 AM"},
+            (GrassType.WARM_SEASON, Region.CENTRAL): {"frequency": "3-4 times", "duration": "25-30", "optimal_time": "6-8 AM"},
+            (GrassType.WARM_SEASON, Region.SOUTHERN): {"frequency": "3-4 times", "duration": "25-30", "optimal_time": "6-8 AM"}
+        }
+        
+        recommendation = base_recommendations.get((grass_type, self.region), 
+                                                {"frequency": "2-3 times", "duration": "20-25", "optimal_time": "6-8 AM"})
+        
+        # Adjust for season
+        if season == Season.SUMMER:
+            # Increase frequency in summer
+            if "2-3" in recommendation["frequency"]:
+                recommendation["frequency"] = "3-4 times"
+            elif "3-4" in recommendation["frequency"]:
+                recommendation["frequency"] = "4-5 times"
+        elif season == Season.WINTER:
+            # Decrease frequency in winter
+            if "3-4" in recommendation["frequency"]:
+                recommendation["frequency"] = "2-3 times"
+            elif "4-5" in recommendation["frequency"]:
+                recommendation["frequency"] = "3-4 times"
+        
+        recommendation["season"] = season.value
+        return recommendation
+    
+    def create_watering_timer(self, duration_minutes: int) -> WateringTimer:
+        """Create a new watering timer."""
+        self.watering_timer = WateringTimer(duration_minutes)
+        return self.watering_timer
+    
+    def get_timer_status(self) -> Optional[Dict]:
+        """Get current watering timer status."""
+        if self.watering_timer:
+            return self.watering_timer.get_status()
+        return None
+    
+    def calculate_next_watering(self, grass_type: GrassType, weather: WeatherCondition, 
+                              temperature: float, days_since_last: int, rainfall_inches: float = 0) -> Dict:
+        """Calculate when to water next based on conditions."""
+        base_frequency = self.get_watering_frequency(grass_type)
+        
+        # Parse frequency to get max days between watering
+        if "2-3" in base_frequency["frequency"]:
+            max_days = 3
+        elif "3-4" in base_frequency["frequency"]:
+            max_days = 2
+        else:
+            max_days = 3
+        
+        # Adjust for weather conditions
+        if weather == WeatherCondition.RAINY or rainfall_inches > 0.25:
+            # Extend time if it rained significantly
+            days_to_wait = max_days + 2
+            if rainfall_inches > 0.5:
+                days_to_wait += 1
+            
+            days_until_next = max(0, days_to_wait - days_since_last)
+            advice = f"Wait {days_until_next} more days due to recent rainfall"
+            
+        elif weather == WeatherCondition.SUNNY and temperature > 80:
+            # Water more frequently in hot, sunny conditions
+            days_to_wait = max(1, max_days - 1)
+            days_until_next = max(0, days_to_wait - days_since_last)
+            
+            if days_until_next == 0:
+                advice = "Water within the next 24 hours due to hot, sunny conditions"
+            else:
+                advice = f"Water in {days_until_next} days - monitor for heat stress"
+                
+        else:
+            # Normal conditions
+            days_until_next = max(0, max_days - days_since_last)
+            if days_until_next == 0:
+                advice = "Time to water based on normal schedule"
+            else:
+                advice = f"Water in {days_until_next} days under normal conditions"
+        
+        return {
+            "days_until_next_watering": days_until_next,
+            "advice": advice,
+            "weather_adjusted": weather != WeatherCondition.CLOUDY,
+            "temperature": temperature,
+            "days_since_last": days_since_last
+        }
+    
+    def get_smart_watering_recommendation(self, grass_type: GrassType, soil_moisture: SoilMoisture,
+                                        temperature: float, days_without_rain: int) -> Dict:
+        """Get smart watering recommendations based on multiple factors."""
+        base_frequency = self.get_watering_frequency(grass_type)
+        base_duration = int(base_frequency["duration"].split("-")[1])  # Use upper range
+        
+        # Adjust duration based on conditions
+        duration_multiplier = 1.0
+        
+        if soil_moisture == SoilMoisture.LOW:
+            duration_multiplier += 0.25
+            urgency = "immediate"
+            advice = "Soil moisture is low - water immediately"
+        elif soil_moisture == SoilMoisture.HIGH:
+            duration_multiplier -= 0.25
+            urgency = "delayed"
+            advice = "Soil moisture is adequate - delay watering"
+        else:
+            urgency = "normal"
+            advice = "Soil moisture is adequate - follow normal schedule"
+        
+        if temperature > 80:
+            duration_multiplier += 0.1
+            if urgency != "immediate":
+                urgency = "soon"
+            advice += " (extended duration due to heat)"
+        
+        if days_without_rain > 3:
+            duration_multiplier += 0.15
+            advice += " (dry conditions detected)"
+        
+        adjusted_duration = int(base_duration * duration_multiplier)
+        
+        return {
+            "recommended_duration_minutes": adjusted_duration,
+            "urgency": urgency,
+            "advice": advice,
+            "duration_adjustment_percentage": round((duration_multiplier - 1) * 100, 1),
+            "base_duration": base_duration
+        }
 
 
 def main():
