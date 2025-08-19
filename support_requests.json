@@ -1,0 +1,22 @@
+[
+  {
+    "request_id": "REQ_20250819_213259",
+    "name": "John Doe",
+    "email": "john.doe@company.com",
+    "department": "IT",
+    "priority": "High",
+    "subject": "Password Reset Request",
+    "description": "I need help resetting my password for the company portal. I've tried the self-service option but it's not working.",
+    "timestamp": "2025-08-19T21:32:59.082663"
+  },
+  {
+    "request_id": "REQ_20250819_213313",
+    "name": "Test User",
+    "email": "test@example.com",
+    "department": "General",
+    "priority": "Medium",
+    "subject": "Test Request",
+    "description": "This is a test submission via CLI",
+    "timestamp": "2025-08-19T21:33:13.895282"
+  }
+]
