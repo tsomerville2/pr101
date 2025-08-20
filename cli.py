@@ -7,6 +7,7 @@ import argparse
 import sys
 from datetime import datetime
 from lawn_care_calculator import LawnCareCalculator, LawnCareActivity, Region
+from crab_grass_knowledge_base import CrabGrassKnowledgeBase, CrabGrassType, CrabGrassStage
 
 
 def main():
@@ -53,17 +54,60 @@ Examples:
                        choices=[activity.value for activity in LawnCareActivity],
                        help='Show next optimal window for activity')
     
+    # Crab grass knowledge base options
+    parser.add_argument('--crabgrass', '-cg',
+                       action='store_true',
+                       help='Access crab grass knowledge base')
+    
+    parser.add_argument('--identify', '-id',
+                       nargs='+',
+                       help='Identify crab grass type based on observed features')
+    
+    parser.add_argument('--treatment', '-tr',
+                       action='store_true',
+                       help='Get crab grass treatment recommendations')
+    
+    parser.add_argument('--prevention', '-pr',
+                       action='store_true',
+                       help='Show crab grass prevention strategies')
+    
+    parser.add_argument('--lifecycle', '-lc',
+                       action='store_true',
+                       help='Show crab grass lifecycle information')
+    
+    parser.add_argument('--calendar', '-cal',
+                       action='store_true',
+                       help='Show seasonal crab grass management calendar')
+    
     args = parser.parse_args()
     
     # Initialize calculator
     region = Region(args.region)
     calculator = LawnCareCalculator(region)
     
+    # Initialize crab grass knowledge base if needed
+    crab_kb = None
+    if args.crabgrass or args.identify or args.treatment or args.prevention or args.lifecycle or args.calendar:
+        crab_kb = CrabGrassKnowledgeBase(region)
+    
     print(f"Lawn Care Calculator - {region.value.title()} Region")
     print("=" * 50)
     
-    # Handle different command modes
-    if args.schedule:
+    # Handle crab grass knowledge base commands first
+    if args.crabgrass:
+        show_crabgrass_overview(crab_kb)
+    elif args.identify:
+        identify_crabgrass(crab_kb, args.identify)
+    elif args.treatment:
+        show_crabgrass_treatments(crab_kb, args.month or datetime.now().month)
+    elif args.prevention:
+        show_crabgrass_prevention(crab_kb)
+    elif args.lifecycle:
+        show_crabgrass_lifecycle(crab_kb)
+    elif args.calendar:
+        show_crabgrass_calendar(crab_kb)
+    # Handle regular lawn care commands
+    elif args.schedule:
         show_yearly_schedule(calculator)
     
     elif args.activity:
@@ -204,7 +248,121 @@ def show_overview(calculator):
         print("  • No activities optimal for current month")
     
     print(f"\nUse --help to see all available options")
-    print("Example: python cli.py --schedule")
+    print("Examples:")
+    print("  python cli.py --schedule")
+    print("  python cli.py --crabgrass")
+    print("  python cli.py --identify 'wide leaves' 'finger-like seed heads'")
+
+
+def show_crabgrass_overview(kb):
+    """Show crab grass knowledge base overview"""
+    print("\nCrab Grass Knowledge Base")
+    print("=" * 30)
+    print("Available commands:")
+    print("  --identify: Identify crab grass type based on features")
+    print("  --treatment: Get treatment recommendations")
+    print("  --prevention: Show prevention strategies")
+    print("  --lifecycle: Show lifecycle information")
+    print("  --calendar: Show seasonal management calendar")
+    
+    # Show identification guide summary
+    print("\nQuick Identification:")
+    guide = kb.get_identification_guide()
+    for grass_type, features in guide.items():
+        print(f"\n{grass_type.replace('_', ' ').title()}:")
+        for feature in features[:2]:  # Show first 2 features
+            print(f"  • {feature['feature']}: {feature['description']}")
+
+
+def identify_crabgrass(kb, observed_features):
+    """Identify crab grass based on observed features"""
+    print(f"\nCrab Grass Identification")
+    print("-" * 30)
+    print(f"Analyzing features: {', '.join(observed_features)}")
+    
+    result = kb.identify_crab_grass(observed_features)
+    
+    print(f"\nIdentification Result:")
+    print(f"Most Likely Type: {result['likely_type']}")
+    print(f"Confidence: {result['confidence']}")
+    
+    if result['matching_features']:
+        print(f"\nMatching Features:")
+        for grass_type, features in result['matching_features'].items():
+            if features:
+                print(f"  {grass_type}: {', '.join(features)}")
+    
+    # Show treatment recommendations
+    current_month = datetime.now().month
+    treatments = kb.get_treatment_recommendations(current_month)
+    if treatments:
+        print(f"\nRecommended Treatments for Current Month:")
+        for treatment in treatments[:2]:  # Show top 2
+            print(f"  • {treatment['name']} (Effectiveness: {treatment['effectiveness']}/10)")
+
+
+def show_crabgrass_treatments(kb, month):
+    """Show crab grass treatment recommendations"""
+    print(f"\nCrab Grass Treatments for Month {month}")
+    print("-" * 40)
+    
+    treatments = kb.get_treatment_recommendations(month)
+    
+    if treatments:
+        for i, treatment in enumerate(treatments, 1):
+            timing_match = "✅" if treatment['timing_match'] else "⏰"
+            stage_match = "✅" if treatment['stage_appropriate'] else "❌"
+            
+            print(f"\n{i}. {treatment['name']}")
+            print(f"   Type: {treatment['type'].replace('_', ' ').title()}")
+            print(f"   Effectiveness: {treatment['effectiveness']}/10")
+            print(f"   Cost: {treatment['cost_range']}")
+            print(f"   Timing Match: {timing_match} | Stage Appropriate: {stage_match}")
+            print(f"   Notes: {treatment['application_notes']}")
+    else:
+        print("No treatments recommended for this month.")
+
+
+def show_crabgrass_prevention(kb):
+    """Show crab grass prevention strategies"""
+    print(f"\nCrab Grass Prevention Strategies")
+    print("-" * 35)
+    
+    strategies = kb.get_prevention_strategies()
+    
+    for i, strategy in enumerate(strategies, 1):
+        print(f"\n{i}. {strategy['strategy']}")
+        print(f"   Description: {strategy['description']}")
+        print(f"   Implementation: {strategy['implementation']}")
+        print(f"   Effectiveness: {strategy['effectiveness']}")
+
+
+def show_crabgrass_lifecycle(kb):
+    """Show crab grass lifecycle information"""
+    print(f"\nCrab Grass Lifecycle")
+    print("-" * 25)
+    
+    lifecycle = kb.get_lifecycle_info()
+    
+    for stage, info in lifecycle.items():
+        print(f"\n{stage.replace('_', ' ').title()}:")
+        print(f"  Description: {info['description']}")
+        print(f"  Timing: {info['timing']}")
+        print(f"  Vulnerability: {info['vulnerability']}")
+        print(f"  Treatment Window: {info['treatment_window']}")
+
+
+def show_crabgrass_calendar(kb):
+    """Show seasonal crab grass management calendar"""
+    print(f"\nSeasonal Crab Grass Management Calendar")
+    print("-" * 45)
+    
+    calendar = kb.get_seasonal_calendar()
+    
+    for season, activities in calendar.items():
+        print(f"\n{season}:")
+        for activity in activities:
+            print(f"  • {activity}")
 
 
 if __name__ == '__main__':
